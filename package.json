@@ -4,12 +4,11 @@
   "description": "a cube rendering and extrusion demo using babylon.js",
   "main": "index.js",
   "scripts": {
-    "prebuild" : "rimraf dist",
+    "prebuild": "rimraf dist",
     "build": "webpack --config webpack.config.js",
-    "postbuild" : "http-server --port 4000 ./",
-
-    "precompile" : "rimraf dist",
-    "compile" : "tsc"
+    "postbuild": "http-server --port 4000 ./",
+    "precompile": "rimraf dist",
+    "compile": "tsc"
   },
   "repository": {
     "type": "git",
@@ -22,7 +21,8 @@
   },
   "homepage": "https://github.com/kiran3807/cube-babylon#readme",
   "dependencies": {
-    "babylonjs": "^6.15.0"
+    "babylonjs": "^6.15.0",
+    "babylonjs-gui": "^6.15.0"
   },
   "devDependencies": {
     "http-server": "^14.1.1",
