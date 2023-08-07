@@ -1,6 +1,5 @@
 import { 
-    Vector3, Matrix, Engine, Scene, Mesh, SubMesh, VertexBuffer, FloatArray, MeshBuilder,
-    StandardMaterial, Color4
+    Vector3, Matrix, Engine, Scene, Mesh, VertexBuffer, IPointerEvent
 } from 'babylonjs';
 
 // convert 2-d space coordinates of browser into projected 3d space coordinates 
@@ -10,8 +9,8 @@ import {
 // pertaining to rendering graphics and displaying objects
 export function getPositionVectorFrom2D(clientX: number, clientY: number) {
 
-    const screenPosition = new Vector3(clientX, clientY, 0.1);
-
+    const screenPosition = new Vector3(clientX, clientY, 1);
+    screenPosition.scaleInPlace(0.001);
     return function(engine: Engine, scene: Scene) {
         return Vector3.Unproject(
             screenPosition,
@@ -24,7 +23,7 @@ export function getPositionVectorFrom2D(clientX: number, clientY: number) {
     }
 }
 
-export function getVertextDisplacementVector(currentPointerVector: Vector3, startPointerVector: Vector3, faceNormalVector: Vector3) {
+export function getVertexDisplacementVector(currentPointerVector: Vector3, startPointerVector: Vector3, faceNormalVector: Vector3) {
 
     
     let pointerDisplacementVector = currentPointerVector.subtract(startPointerVector);
@@ -35,6 +34,12 @@ export function getVertextDisplacementVector(currentPointerVector: Vector3, star
     // due to vector representing the translated 2-D coordinate mouse pointer taking up disproportinal values on account
     // of lack of proper scaling by the Vector3.Unproject method, we use hard-coded scaling.
     return vertexDisplacementVector;
+}
+
+export function buildDisplacementVector(event: IPointerEvent, startVector: Vector3, normalVector: Vector3, engine: Engine, scene: Scene) {
+
+    const currentDragVector = getPositionVectorFrom2D(event.clientX, event.clientY)(engine, scene);
+    return getVertexDisplacementVector(currentDragVector, startVector, normalVector);
 }
 
 export function extrudeMesh(mesh: Mesh, displacementVector: Vector3, faceId: number) {
@@ -58,98 +63,3 @@ export function extrudeMesh(mesh: Mesh, displacementVector: Vector3, faceId: num
     mesh.updateVerticesData(VertexBuffer.PositionKind, meshPositions!, true);
 }
 
-export class ExtrusionSimulatorManager {
-    
-    private instance : Mesh | null = null
-
-    destroy() {
-        if(this.instance) {
-            this.instance.dispose();
-        }
-        this.instance = null;
-    }
-
-    simulate(cube: Mesh, displacementVector: Vector3, faceId: number) {
-        if(this.instance) {
-            this.instance.dispose();
-        }
-
-        const meshIndices = cube.getIndices();
-        const meshPositions = cube.getVerticesData(VertexBuffer.PositionKind);
-    
-        const face = faceId / 2;
-        const facet = 2 * Math.floor(face);
-        
-        let planePositions = new Array<number>();
-
-        meshIndices!.slice(3 * facet, 3 * facet + 6).forEach((vertexIndex)=> {
-            planePositions.push(meshPositions![3*vertexIndex] + displacementVector.x), 
-            planePositions.push(meshPositions![3*vertexIndex + 1 ] + displacementVector.y), 
-            planePositions.push(meshPositions![3*vertexIndex + 2 ] + displacementVector.z)
-        });
-    
-        return (scene: Scene) => {
-
-            this.instance = MeshBuilder.CreatePlane("simulation", {}, scene);
-            this.instance.setIndices([0, 1, 2, 3, 4, 5]);
-            this.instance.setVerticesData(
-                VertexBuffer.PositionKind,
-                planePositions
-            );
-    
-            this.instance.setVerticesData(
-                VertexBuffer.ColorKind,
-                Array.from({ length: 6 }).fill(
-                    new Color4(12 / 255, 242 / 255, 93 / 255, 1).asArray()
-                ).flat() as FloatArray
-            );
-            this.instance.updateFacetData();
-            this.instance.convertToFlatShadedMesh();
-        }
-    }
-}
-
-// a state managment helper class which neatly packages all the shared state variables and updates 
-// them in tandem and in a controlled fashion.
-export class DragManager {
-
-    private dragStartVector: Vector3 | null = null
-    private dragNormalVector: Vector3 | null = null
-    private dragFaceId: number | null = null
-    private state = false;
-
-    inDragState(): boolean {
-        return this.state;
-    }
-    setDragState(state: boolean, dragStartVector?: Vector3, dragNormalVector?: Vector3, dragFaceId? : number): void {
-        
-        if(state) {
-
-            if(dragStartVector !== undefined && dragNormalVector !==undefined &&  dragFaceId !== undefined) {
-                this.dragStartVector = dragStartVector;
-                this.dragNormalVector = dragNormalVector;
-                this.dragFaceId = dragFaceId;
-            } else {
-                throw Error("cannot set rest of the elements without setting drag state as true");
-            }
-        } else {
-            this.dragStartVector = null;
-            this.dragNormalVector = null;
-            this.dragFaceId = null;
-        }
-        
-        this.state = state;
-    }
-
-    getDragNormalVector(): Vector3 | null {
-        return this.dragNormalVector;
-    }
-
-    getDragFaceId(): number | null {
-        return this.dragFaceId;
-    }
-
-    getDragStartVector() {
-        return this.dragStartVector;
-    }
-}

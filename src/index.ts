@@ -1,15 +1,17 @@
 import { 
     Engine, MeshBuilder, ArcRotateCamera, HemisphericLight,
-    Scene, Vector3, Color3, Color4, AbstractMesh, FreeCamera, ActionManager,
-    InterpolateValueAction, Mesh, StandardMaterial, ExecuteCodeAction, MultiMaterial, 
-    SubMesh, Matrix, VertexData,
-    PickingInfo, IPointerEvent, VertexBuffer
+    Scene, Vector3, Color3, StandardMaterial, MultiMaterial, 
+    SubMesh, 
 } from 'babylonjs';
 
 import { 
-    getPositionVectorFrom2D, getVertextDisplacementVector, extrudeMesh, DragManager,
-    ExtrusionSimulatorManager
+    buildDisplacementVector, extrudeMesh
 } from "./utils";
+import { 
+    DragManager,
+    ExtrusionSimulatorManager,
+    HighlightManager
+} from "./helper";
 
 let canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 let engine = new Engine(canvas, true);
@@ -45,44 +47,41 @@ function createCube(scene: Scene) {
     materialExtrusionHighlight.alpha = 0.4;
     cubeMaterials.subMaterials.push(materialExtrusionHighlight);
 
-    // scroll highlight code
-    let subMeshMaterialIndexesArray = new Array<any>();
-    cube.subMeshes.forEach((subMesh, index)=> {
-        subMeshMaterialIndexesArray[index] = [subMesh.materialIndex, 6];
-    });
 
     const dragManager = new DragManager();
     const simulator = new ExtrusionSimulatorManager();
+    const highlighter = new HighlightManager(cube);
 
     scene.onPointerMove = (event, pickInfo) => {
-
-        function setMaterial(materialIndex: number, subMeshIndex: number) {
-            cube.subMeshes[subMeshIndex].materialIndex = materialIndex;
-        }
         
         if(pickInfo.hit && pickInfo.pickedMesh === cube) {
             if(!dragManager.inDragState()) {
-                setMaterial(subMeshMaterialIndexesArray[pickInfo.subMeshId][1], pickInfo.subMeshId);
-                subMeshMaterialIndexesArray.forEach((el, index)=> {
-                    if( index !== pickInfo.subMeshId && index !== (pickInfo.subMeshId+1)) {
-                        setMaterial(el[0], index);
-                    }
-                });
+
+                highlighter.highlightHoveredFace(pickInfo);
             } else {
-                console.log("on move");
-                const currentDragVector = getPositionVectorFrom2D(event.clientX, event.clientY)(engine, scene);
-                const vertexDisplacementVector = getVertextDisplacementVector(currentDragVector, dragManager.getDragStartVector()!, dragManager.getDragNormalVector()!.scale(-1));
+                
+                const vertexDisplacementVector = buildDisplacementVector(
+                    event, 
+                    dragManager.getDragStartVector()!, 
+                    dragManager.getDragNormalVector()!.scale(-1), 
+                    engine, 
+                    scene
+                );
                 simulator.simulate(cube, vertexDisplacementVector, dragManager.getDragFaceId()!)(scene);
             }
         } else {
             if(!dragManager.inDragState()) {
-                subMeshMaterialIndexesArray.forEach((el, index)=> {
-                    setMaterial(el[0], index);
-                });
+
+                highlighter.removeHighlightsAllFaces();
             } else {
-                console.log("on move");
-                const currentDragVector = getPositionVectorFrom2D(event.clientX, event.clientY)(engine, scene);
-                const vertexDisplacementVector = getVertextDisplacementVector(currentDragVector, dragManager.getDragStartVector()!, dragManager.getDragNormalVector()!);
+
+                const vertexDisplacementVector = buildDisplacementVector(
+                    event, 
+                    dragManager.getDragStartVector()!, 
+                    dragManager.getDragNormalVector()!, 
+                    engine, 
+                    scene
+                );
                 simulator.simulate(cube, vertexDisplacementVector, dragManager.getDragFaceId()!)(scene);
             }
         }
@@ -93,15 +92,17 @@ function createCube(scene: Scene) {
         if(pickInfo.hit && pickInfo.pickedMesh === cube && !dragManager.inDragState()) {
 
             dragManager.setDragState(true, pickInfo.pickedPoint!, pickInfo.getNormal()!, pickInfo.faceId);
-            cube.subMeshes[pickInfo.subMeshId].materialIndex = 7;
+            highlighter.highlightSelectedFace(pickInfo);
 
         } else if(pickInfo.hit && pickInfo.pickedMesh === cube && dragManager.inDragState()) {
 
-            console.log("on down-1");
-            const currentDragVector = getPositionVectorFrom2D(event.clientX, event.clientY)(engine, scene);
-            const vertexDisplacementVector = getVertextDisplacementVector(currentDragVector, dragManager.getDragStartVector()!, dragManager.getDragNormalVector()!.scale(-1));
-            const v = getVertextDisplacementVector(currentDragVector, dragManager.getDragStartVector()!, dragManager.getDragNormalVector()!);
-            console.log(vertexDisplacementVector, v, dragManager.getDragNormalVector(), dragManager.getDragNormalVector()?.scale(-1));
+            const vertexDisplacementVector = buildDisplacementVector(
+                event, 
+                dragManager.getDragStartVector()!, 
+                dragManager.getDragNormalVector()!.scale(-1), 
+                engine, 
+                scene
+            );
 
             extrudeMesh(cube, vertexDisplacementVector, dragManager.getDragFaceId()!);
             dragManager.setDragState(false);
@@ -109,28 +110,26 @@ function createCube(scene: Scene) {
 
         } else if(!pickInfo.hit && dragManager.inDragState()) {
 
-            console.log("on down-2");
-            const currentDragVector = getPositionVectorFrom2D(event.clientX, event.clientY)(engine, scene);
-            const vertexDisplacementVector = getVertextDisplacementVector(currentDragVector, dragManager.getDragStartVector()!, dragManager.getDragNormalVector()!);
-
-            console.log(currentDragVector.asArray(), dragManager.getDragNormalVector());
+            const vertexDisplacementVector = buildDisplacementVector(
+                event, 
+                dragManager.getDragStartVector()!, 
+                dragManager.getDragNormalVector()!, 
+                engine, 
+                scene
+            );
 
             extrudeMesh(cube, vertexDisplacementVector, dragManager.getDragFaceId()!);
             dragManager.setDragState(false);
             simulator.destroy();
         }
     }
-    
-    //addLabelToMesh(cube);
 }
 
 function createScene(engine: Engine, canvas: HTMLCanvasElement) {
 
     let scene = new Scene(engine);
-
     let camera = new ArcRotateCamera("Camera", Math.PI/2, Math.PI/2, 2, Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
-
     let light = new HemisphericLight("light", new Vector3(1,0,0), scene);
     
     createCube(scene);
@@ -140,10 +139,9 @@ function createScene(engine: Engine, canvas: HTMLCanvasElement) {
 
 let scene = createScene(engine, canvas);
 engine.runRenderLoop(async ()=> {
-    
     scene.render();
-
     let cube = scene.getMeshById("cube")
+    
     if(!cube) {
         throw Error("cannot find the cube mesh");
     }
