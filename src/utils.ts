@@ -3,6 +3,8 @@ import {
     MeshBuilder
 } from 'babylonjs';
 
+import { Cube } from "./helper";
+
 // convert 2-d space coordinates of browser into projected 3d space coordinates 
 // of the scene.
 export function getPositionVectorFrom2D(clientX: number, clientY: number, engine: Engine, scene: Scene) {
@@ -18,6 +20,10 @@ export function getPositionVectorFrom2D(clientX: number, clientY: number, engine
     );
 }
 
+// returns the vector along which the vertices will be translated during extrusion,
+// the principle is to find the projection of the vector between point clicked on face
+// and where the mouse is resting currently in the direction of the normal unit vector
+// perpendicular to the mesh face
 export function getVertexDisplacementVector(currentPointerVector: Vector3, startPointerVector: Vector3, faceNormalVector: Vector3) {
 
     
@@ -36,10 +42,15 @@ export function buildDisplacementVector(event: IPointerEvent, startVector: Vecto
     return getVertexDisplacementVector(currentDragVector, startVector, normalVector);
 }
 
-export function extrudeMesh(mesh: Mesh, displacementVector: Vector3, faceId: number, scene: Scene) {
+// extrusion is done via identifying the vertices present in the face of the mesh, in case of
+// a cube it is done via the faceId param, which indicates the internal order of the faces
+// within the cube, that internal order also corresponds to how the facets/vertices are organised
+// the translation vector is added to all the points within the position array to successfully 
+// extrude the cube face
+export function extrudeMesh(cube: Cube, displacementVector: Vector3, faceId: number, scene: Scene) {
 
-    const meshIndices = mesh.getIndices();
-    const meshPositions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    const meshIndices = cube.getIndices();
+    const meshPositions = cube.getPositionArray();
 
     const face = faceId / 2;
     const facet = 2 * Math.floor(face);
@@ -53,7 +64,7 @@ export function extrudeMesh(mesh: Mesh, displacementVector: Vector3, faceId: num
         meshPositions![3*vertexIndex + 1 ] = meshPositions![3*vertexIndex + 1 ] + displacementVector.y;
         meshPositions![3*vertexIndex + 2] = meshPositions![3*vertexIndex + 2] + displacementVector.z;
     });
-    
-    mesh.updateVerticesData(VertexBuffer.PositionKind, meshPositions!, true);
+
+    cube.updatePositionArray(meshPositions!)
 }
 
