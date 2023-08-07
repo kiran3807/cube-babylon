@@ -31,7 +31,7 @@ export class HighlightManager {
             }
         });
     }
-    
+
     highlightSelectedFace(pickInfo: PickingInfo) {
         this.cube.subMeshes[pickInfo.subMeshId].materialIndex = 7;
     }
@@ -55,7 +55,7 @@ export class ExtrusionSimulatorManager {
         this.instance = null;
     }
 
-    simulate(cube: Mesh, displacementVector: Vector3, faceId: number) {
+    simulate(cube: Mesh, displacementVector: Vector3, faceId: number, scene: Scene) {
         if(this.instance) {
             this.instance.dispose();
         }
@@ -73,25 +73,22 @@ export class ExtrusionSimulatorManager {
             planePositions.push(meshPositions![3*vertexIndex + 1 ] + displacementVector.y), 
             planePositions.push(meshPositions![3*vertexIndex + 2 ] + displacementVector.z)
         });
-    
-        return (scene: Scene) => {
 
-            this.instance = MeshBuilder.CreatePlane("simulation", {}, scene);
-            this.instance.setIndices([0, 1, 2, 3, 4, 5]);
-            this.instance.setVerticesData(
-                VertexBuffer.PositionKind,
-                planePositions
-            );
-    
-            this.instance.setVerticesData(
-                VertexBuffer.ColorKind,
-                Array.from({ length: 6 }).fill(
-                    new Color4(12 / 255, 242 / 255, 93 / 255, 1).asArray()
-                ).flat() as FloatArray
-            );
-            this.instance.updateFacetData();
-            this.instance.convertToFlatShadedMesh();
-        }
+        this.instance = MeshBuilder.CreatePlane("simulation", {}, scene);
+        this.instance.setIndices([0, 1, 2, 3, 4, 5]);
+        this.instance.setVerticesData(
+            VertexBuffer.PositionKind,
+            planePositions
+        );
+
+        this.instance.setVerticesData(
+            VertexBuffer.ColorKind,
+            Array.from({ length: 6 }).fill(
+                new Color4(12 / 255, 242 / 255, 93 / 255, 1).asArray()
+            ).flat() as FloatArray
+        );
+        this.instance.updateFacetData();
+        this.instance.convertToFlatShadedMesh();
     }
 }
 
@@ -128,15 +125,15 @@ export class DragManager {
         this.state = state;
     }
 
-    getDragNormalVector(): Vector3 | null {
+    getNormalVector(): Vector3 | null {
         return this.dragNormalVector;
     }
 
-    getDragFaceId(): number | null {
+    getFaceId(): number | null {
         return this.dragFaceId;
     }
 
-    getDragStartVector() {
+    getStartVector() {
         return this.dragStartVector;
     }
 }

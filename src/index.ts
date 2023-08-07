@@ -47,7 +47,11 @@ function createCube(scene: Scene) {
     materialExtrusionHighlight.alpha = 0.4;
     cubeMaterials.subMaterials.push(materialExtrusionHighlight);
 
-
+    // drag manager manages the state transitions pertaining to extrusions of faces by "dragging" them
+    // around
+    // simulator projects the coloured plane representing the possible position of the new face of cube after
+    // extrusion and the related state transitions.
+    // highlighter takes care of the state transitions pertaining to highlighting of the faces of the cube
     const dragManager = new DragManager();
     const simulator = new ExtrusionSimulatorManager();
     const highlighter = new HighlightManager(cube);
@@ -59,15 +63,15 @@ function createCube(scene: Scene) {
 
                 highlighter.highlightHoveredFace(pickInfo);
             } else {
-                
+
                 const vertexDisplacementVector = buildDisplacementVector(
                     event, 
-                    dragManager.getDragStartVector()!, 
-                    dragManager.getDragNormalVector()!.scale(-1), 
+                    dragManager.getStartVector()!, 
+                    dragManager.getNormalVector()!, 
                     engine, 
                     scene
                 );
-                simulator.simulate(cube, vertexDisplacementVector, dragManager.getDragFaceId()!)(scene);
+                simulator.simulate(cube, vertexDisplacementVector, dragManager.getFaceId()!, scene);
             }
         } else {
             if(!dragManager.inDragState()) {
@@ -77,12 +81,12 @@ function createCube(scene: Scene) {
 
                 const vertexDisplacementVector = buildDisplacementVector(
                     event, 
-                    dragManager.getDragStartVector()!, 
-                    dragManager.getDragNormalVector()!, 
+                    dragManager.getStartVector()!, 
+                    dragManager.getNormalVector()!, 
                     engine, 
                     scene
                 );
-                simulator.simulate(cube, vertexDisplacementVector, dragManager.getDragFaceId()!)(scene);
+                simulator.simulate(cube, vertexDisplacementVector, dragManager.getFaceId()!, scene);
             }
         }
     }
@@ -91,20 +95,20 @@ function createCube(scene: Scene) {
 
         if(pickInfo.hit && pickInfo.pickedMesh === cube && !dragManager.inDragState()) {
 
-            dragManager.setDragState(true, pickInfo.pickedPoint!, pickInfo.getNormal()!, pickInfo.faceId);
+            dragManager.setDragState(true, pickInfo.pickedPoint!, pickInfo.getNormal(true, false)!, pickInfo.faceId);
             highlighter.highlightSelectedFace(pickInfo);
 
         } else if(pickInfo.hit && pickInfo.pickedMesh === cube && dragManager.inDragState()) {
 
             const vertexDisplacementVector = buildDisplacementVector(
                 event, 
-                dragManager.getDragStartVector()!, 
-                dragManager.getDragNormalVector()!.scale(-1), 
+                dragManager.getStartVector()!, 
+                dragManager.getNormalVector()!, 
                 engine, 
                 scene
             );
 
-            extrudeMesh(cube, vertexDisplacementVector, dragManager.getDragFaceId()!);
+            extrudeMesh(cube, vertexDisplacementVector, dragManager.getFaceId()!, scene);
             dragManager.setDragState(false);
             simulator.destroy();
 
@@ -112,13 +116,13 @@ function createCube(scene: Scene) {
 
             const vertexDisplacementVector = buildDisplacementVector(
                 event, 
-                dragManager.getDragStartVector()!, 
-                dragManager.getDragNormalVector()!, 
+                dragManager.getStartVector()!, 
+                dragManager.getNormalVector()!, 
                 engine, 
                 scene
             );
 
-            extrudeMesh(cube, vertexDisplacementVector, dragManager.getDragFaceId()!);
+            extrudeMesh(cube, vertexDisplacementVector, dragManager.getFaceId()!, scene);
             dragManager.setDragState(false);
             simulator.destroy();
         }
